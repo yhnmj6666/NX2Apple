@@ -26,6 +26,7 @@ jobs:
       - run: python tools/engine.py sync
       - run: python -m unittest discover -s frontend-qt/tests
       - run: python -m unittest discover -s tools/tests
+        if: ${{ !cancelled() }}
 
   shell:
     runs-on: xcode-27
@@ -66,19 +67,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
+          xcrun --sdk iphoneos clang -target arm64-apple-ios18.0 -fobjc-arc -DDM_NVN_M3=1 \
+            -Wno-unguarded-availability-new -fsyntax-only \
+            engine/dm/gfx/nvn/nvn_metal3.m engine/dm/gfx/tests/t_metal3.m
           xcrun clang -fobjc-arc -DDM_NVN_M3=1 -mmacosx-version-min=15.0 \
             -Wno-unguarded-availability-new -framework Foundation -framework Metal \
             engine/dm/gfx/nvn/nvn_metal3.m engine/dm/gfx/tests/t_metal3.m \
             -o "$RUNNER_TEMP/test-metal3"
           MTL_DEBUG_LAYER=1 "$RUNNER_TEMP/test-metal3"
       - name: Install iOS 18 simulator runtime
+        id: ios18runtime
         if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
-          xcodebuild -downloadPlatform iOS -buildVersion 18.5 -architectureVariant arm64
+          xcodebuild -downloadPlatform iOS -buildVersion 18.5 -architectureVariant universal
           xcrun simctl create "iOS 18 compatibility" com.apple.CoreSimulator.SimDeviceType.iPhone-13 com.apple.CoreSimulator.SimRuntime.iOS-18-5 > "$RUNNER_TEMP/ios18-simulator"
       - name: iOS 18 package and affected UI regressions
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.ios18runtime.outcome == 'success' }}
         run: |
           set -euo pipefail
           destination="platform=iOS Simulator,id=$(cat "$RUNNER_TEMP/ios18-simulator")"

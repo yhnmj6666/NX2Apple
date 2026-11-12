@@ -64,3 +64,4 @@
 0097-docs-env-switches-row-for-dm-nvn-bc-alias.patch
 0098-nsp-script-package-names-which-upstream-dropped.patch
 0099-add-opt-in-classic-metal-backend-for-ios-18.patch
+0100-use-render-pass-boundaries-for-classic-gpu-barri.patch

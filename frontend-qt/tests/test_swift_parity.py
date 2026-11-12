@@ -596,7 +596,7 @@ class SharedShellParityTests(unittest.TestCase):
             fb_root = root / 'fb_shell'
             fb_out = fb_root / 'template' / 'DmShell.app'
 
-            def fake_build_template(out_app: Path, engine: Path | None = None) -> Path:
+            def fake_build_template(out_app: Path, engine: Path | None = None, *, ios18: bool = False) -> Path:
                 self.assertEqual(engine, eng)
                 out_app.mkdir(parents=True, exist_ok=True)
                 (out_app / 'DmShell').write_bytes(_make_arm64_macho(tc.MH_EXECUTE))

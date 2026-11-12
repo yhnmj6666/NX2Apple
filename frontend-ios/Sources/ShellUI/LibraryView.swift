@@ -369,7 +369,7 @@ public struct LibraryView: View {
 
         }
         .navigationTitle(menuTitle)
-        .navigationSubtitle(tabletopSettings ? ShellStrings.text("Game settings").uppercased() : "")
+        .shellNavigationSubtitle(tabletopSettings ? ShellStrings.text("Game settings").uppercased() : "")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -514,12 +514,14 @@ public struct LibraryView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("library.position")
             }
-            .sharedBackgroundVisibility(.hidden)
+            .shellHiddenSharedBackground()
         }
 
         if let item = libraryActions.first(where: { $0.id == "controllers.open" }) {
             controllerItem(item)
-            ToolbarSpacer(.fixed, placement: .primaryAction)
+            if #available(iOS 26, macOS 26, *) {
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+            }
         }
         if let item = libraryActions.first(where: { $0.id == "shellSettings.open" }) {
             ToolbarItem(placement: .primaryAction) {

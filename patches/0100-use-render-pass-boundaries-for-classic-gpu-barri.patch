@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: yhnmj6666 <15858973+yhnmj6666@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 01:51:18 -0500
+Subject: [PATCH] Use render-pass boundaries for classic GPU barriers
+
+Classic render memory barriers are unsupported on Apple GPUs. Reuse the renderer's existing pass split and complete state restoration before shader writes instead of relying on an unsupported encoder barrier. Exercise compute barriers and attachment preservation across a render-pass split in the game-free GPU regression.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+Upstream-Status: fork-only
+Reason: Classic Apple GPU render barriers require a pass boundary and existing state restoration
+Issue: none (fork-only iOS 18 compatibility validation)
+
+---
+ dm/gfx/nvn/nvn_metal3.m | 13 ++-----------
+ dm/gfx/nvn/nvn_mtl.m    |  3 ++-
+ dm/gfx/tests/t_metal3.m |  9 +++++++--
+ 3 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/dm/gfx/nvn/nvn_metal3.m b/dm/gfx/nvn/nvn_metal3.m
+index 283ae30..bc67c1c 100644
+--- a/dm/gfx/nvn/nvn_metal3.m
++++ b/dm/gfx/nvn/nvn_metal3.m
+@@ -230,17 +230,8 @@ static void m3_bind_table(id encoder, DmM3Table *table, MTLRenderStages stage) {
+     (void)after; (void)before; (void)options;
+ }
+ - (void)barrierAfterEncoderStages:(MTLStages)after beforeEncoderStages:(MTLStages)before visibilityOptions:(MTL4VisibilityOptions)options {
+-    (void)options;
+-    MTLRenderStages source = 0, destination = 0;
+-    if (after & MTLStageVertex) source |= MTLRenderStageVertex;
+-    if (after & MTLStageFragment) source |= MTLRenderStageFragment;
+-    if (after & MTLStageObject) source |= MTLRenderStageObject;
+-    if (after & MTLStageMesh) source |= MTLRenderStageMesh;
+-    if (before & MTLStageVertex) destination |= MTLRenderStageVertex;
+-    if (before & MTLStageFragment) destination |= MTLRenderStageFragment;
+-    if (before & MTLStageObject) destination |= MTLRenderStageObject;
+-    if (before & MTLStageMesh) destination |= MTLRenderStageMesh;
+-    if (source && destination) [_encoder memoryBarrierWithScope:MTLBarrierScopeBuffers | MTLBarrierScopeTextures | MTLBarrierScopeRenderTargets afterStages:source beforeStages:destination];
++    (void)after; (void)before; (void)options;
++    m3_fail(@"classic render barriers require a render-pass split");
+ }
+ - (void)drawPrimitives:(MTLPrimitiveType)type vertexStart:(NSUInteger)start vertexCount:(NSUInteger)count {
+     [self bind:NO]; [_encoder drawPrimitives:type vertexStart:start vertexCount:count];
+diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
+index ebe8fa2..ddddb05 100644
+--- a/dm/gfx/nvn/nvn_mtl.m
++++ b/dm/gfx/nvn/nvn_mtl.m
+@@ -6768,7 +6768,8 @@ static void order_note(NvProg *pr) {   // after each draw of the pass: does it r
+ static void order_draw(NvProg *pr, int merged) {   // merged: a merged (readable-tile, slice-merged) or deferred pass
+     int w = g_enc && g_pass_order ? prog_swrites(pr) : 0;
+     if (!w) return;
+-    if (!(w & 4) && !((g_pass_order & 2) && g_pass_late_res) && !merged) {
++    // Classic render memory barriers are unsupported on Apple GPUs; use the existing pass split and state restoration.
++    if (!DM_NVN_M3 && !(w & 4) && !((g_pass_order & 2) && g_pass_late_res) && !merged) {
+         [g_enc barrierAfterEncoderStages:MTLStageVertex beforeEncoderStages:(w & 1 ? MTLStageVertex : 0) | (w & 2 ? MTLStageFragment : 0) visibilityOptions:resource_vis()];
+         g_pass_order = 0; g_order_vbar++;
+         static int once; if (!once++) MLOG("a shader write after a game barrier in a draw pass: a barrier from the vertex stage in the pass (first case pass %llu)", g_stat_pass);
+diff --git a/dm/gfx/tests/t_metal3.m b/dm/gfx/tests/t_metal3.m
+index e8132e9..69d7afd 100644
+--- a/dm/gfx/tests/t_metal3.m
++++ b/dm/gfx/tests/t_metal3.m
+@@ -62,6 +62,7 @@ static void test_compute_blit_switching(void) {
+     [encoder setComputePipelineState:compute(@"increment")];
+     [encoder setArgumentTable:arguments];
+     [encoder dispatchThreadgroups:MTLSizeMake(1, 1, 1) threadsPerThreadgroup:MTLSizeMake(1, 1, 1)];
++    [encoder barrierAfterEncoderStages:MTLStageDispatch beforeEncoderStages:MTLStageDispatch visibilityOptions:MTL4VisibilityOptionDevice];
+     [encoder copyFromBuffer:data sourceOffset:16 toBuffer:copy destinationOffset:0 size:4];
+     [encoder fillBuffer:data range:NSMakeRange(32, 4) value:3];
+     [arguments setAddress:data.gpuAddress + 32 atIndex:0];
+@@ -139,7 +140,11 @@ static void test_render_bindings_and_index_offsets(void) {
+     [encoder setArgumentTable:arguments atStages:MTLRenderStageFragment];
+     [encoder setScissorRect:(MTLScissorRect){0, 0, 1, 1}];
+     [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:3 indexType:MTLIndexTypeUInt16 indexBuffer:index.gpuAddress + 4 indexBufferLength:6 instanceCount:1 baseVertex:0 baseInstance:0];
+-    [encoder barrierAfterEncoderStages:MTLStageFragment beforeEncoderStages:MTLStageFragment visibilityOptions:MTL4VisibilityOptionDevice];
++    [encoder endEncoding];
++    pass.colorAttachments[0].loadAction = MTLLoadActionLoad;
++    encoder = [buffer renderCommandEncoderWithDescriptor:pass];
++    [encoder setRenderPipelineState:pipeline];
++    [encoder setArgumentTable:arguments atStages:MTLRenderStageFragment];
+     [arguments setAddress:color.gpuAddress + 32 atIndex:0];
+     [encoder setScissorRect:(MTLScissorRect){1, 0, 1, 1}];
+     [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+@@ -174,7 +179,7 @@ int main(void) {
+         test_compute_blit_switching();
+         test_indirect_resources_and_reuse();
+         test_render_bindings_and_index_offsets();
+-        puts("Metal 3: mixed encoders, mutable bindings, indirect resources, buffer reuse and indexed rendering passed");
++        puts("Metal 3: mixed encoders, mutable bindings, indirect resources, buffer reuse, indexed rendering and render-pass splitting passed");
+     }
+     return 0;
+ }

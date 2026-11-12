@@ -74,4 +74,22 @@ extension View {
             self
         }
     }
+
+    @ViewBuilder func shellNavigationSubtitle(_ subtitle: String) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            navigationSubtitle(subtitle)
+        } else {
+            self
+        }
+    }
+}
+
+extension ToolbarContent {
+    @ToolbarContentBuilder func shellHiddenSharedBackground() -> some ToolbarContent {
+        if #available(iOS 26, macOS 26, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
+    }
 }
