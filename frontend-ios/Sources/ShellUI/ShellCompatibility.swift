@@ -82,13 +82,14 @@ extension View {
             self
         }
     }
+}
 
-    @ViewBuilder func shellViewAligned(anchor: UnitPoint) -> some View {
+extension ScrollTargetBehavior where Self == ViewAlignedScrollTargetBehavior {
+    static func shellViewAligned(anchor: UnitPoint) -> Self {
         if #available(iOS 26, macOS 26, *) {
-            scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne, anchor: anchor))
-        } else {
-            scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            return .init(limitBehavior: .alwaysByOne, anchor: anchor)
         }
+        return .init(limitBehavior: .alwaysByOne)
     }
 }
 

@@ -81,7 +81,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
-          if ! xcodebuild -downloadPlatform iOS -buildVersion 18.5; then
+          if ! xcodebuild -downloadPlatform iOS -buildVersion 22F77; then
             echo "::warning::iOS 18.5 download failed; checking installed simulator runtimes."
           fi
           xcrun simctl list runtimes --json > "$RUNNER_TEMP/ios18-runtimes.json"
@@ -122,6 +122,24 @@ jobs:
             -only-testing:ShellDemoUITests/ShellDemoUITests/testCoverFlowControllerSelectionDoesNotScrollBack \
             -only-testing:ShellDemoUITests/ShellDemoUITests/testCoverFlowSlowSwipeKeepsSelectionAndTitleInSync \
             -only-testing:ShellDemoUITests/ShellDemoUITests/testCoverFlowSwipesAndCentersSelection test
+      - name: Compare failed UI checks with the unmodified release
+        if: ${{ failure() && steps.simulator.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          if grep -q '.SimRuntime.iOS-18-' "$RUNNER_TEMP/ios18-test-runtime.txt"; then
+            echo "::notice::The unmodified release requires iOS 26; it cannot run on this iOS 18 simulator."
+            exit 0
+          fi
+          baseline="$RUNNER_TEMP/ios18-baseline"
+          git fetch --depth=1 origin 734bc63d18e7f4ca5e30e5683177b3eb2e1d50e3
+          git worktree add --detach "$baseline" 734bc63d18e7f4ca5e30e5683177b3eb2e1d50e3
+          ln -s "$GITHUB_WORKSPACE/engine" "$baseline/engine"
+          destination="platform=iOS Simulator,id=$(cat "$RUNNER_TEMP/ios18-simulator")"
+          xcodebuild -project "$baseline/frontend-ios/Demo/ShellDemo.xcodeproj" -scheme ShellDemo \
+            -destination "$destination" -derivedDataPath "$RUNNER_TEMP/ios18-baseline-build" \
+            CODE_SIGNING_ALLOWED=NO -resultBundlePath "$RUNNER_TEMP/ios18-baseline.xcresult" \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testCoverFlowSwipesAndCentersSelection \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testNativeMenuChoiceDeleteCancelAndHelp test
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
