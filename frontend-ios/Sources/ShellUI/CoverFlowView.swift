@@ -154,7 +154,7 @@ struct CoverFlowView: View, Equatable {
                 }
             }.scrollTargetLayout()
         }
-        .scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne, anchor: anchor))
+        .shellViewAligned(anchor: anchor)
         .scrollPosition(id: $centredID, anchor: anchor)
         .contentMargins(.leading, margin, for: .scrollContent)
         .contentMargins(.trailing, max(0, width - cover - margin), for: .scrollContent)

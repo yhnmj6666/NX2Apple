@@ -13,7 +13,7 @@ spec.loader.exec_module(builder)
 
 
 class ShellTemplateDeploymentTest(unittest.TestCase):
-    def build(self, ios18, built_minimum=None):
+    def build(self, ios18, built_minimum=None, failure_output=None):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             engine = root / 'engine'
@@ -35,6 +35,8 @@ class ShellTemplateDeploymentTest(unittest.TestCase):
                     generated['project'] = (cwd / 'project.yml').read_text(encoding='ascii')
                     (cwd / 'Gen' / 'Info.plist').write_bytes(plistlib.dumps({}))
                 if command[0] == 'xcodebuild':
+                    if failure_output is not None:
+                        return subprocess.CompletedProcess(command, 65, failure_output, '')
                     generated['command'] = command
                     dd = Path(command[command.index('-derivedDataPath') + 1])
                     app = dd / 'Build' / 'Products' / 'Release-iphoneos' / 'DmShell.app'
@@ -66,3 +68,8 @@ class ShellTemplateDeploymentTest(unittest.TestCase):
     def test_ios18_refuses_a_mislabeled_build(self):
         with self.assertRaisesRegex(SystemExit, 'did not produce an iOS 18 app'):
             self.build(True, built_minimum='26.0')
+
+    def test_build_failure_preserves_errors_before_the_log_tail(self):
+        output = 'error: missing iOS 18 availability guard\n' + 'compiler note\n' * 50
+        with self.assertRaisesRegex(SystemExit, 'missing iOS 18 availability guard'):
+            self.build(True, failure_output=output)
