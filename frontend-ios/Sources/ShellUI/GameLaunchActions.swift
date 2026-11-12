@@ -20,7 +20,7 @@ struct GameLaunchActions: View {
             if let glassNamespace {
                 buttons(in: glassNamespace)
             } else {
-                GlassEffectContainer(spacing: 12) { buttons(in: localGlassNamespace) }
+                ShellGlassEffectContainer(spacing: 12) { buttons(in: localGlassNamespace) }
             }
         }
         .animation(reduceMotion ? nil : .smooth(duration: transitionDuration), value: game.state.actionTitle)
@@ -43,11 +43,11 @@ struct GameLaunchActions: View {
                     .frame(maxWidth: expands ? .infinity : nil, minHeight: 26)
                     .foregroundStyle(.black)
             }
-            .buttonStyle(.glassProminent)
+            .shellGlassButton(prominent: true)
             .tint(ShellPalette.cream)
             .controlSize(.large)
-            .glassEffectID("primary", in: namespace)
-            .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+            .shellGlassEffectID("primary", in: namespace)
+            .shellGlassEffectTransition(reduceMotion: reduceMotion)
             .accessibilityLabel(game.state.actionTitle + ", " + game.title)
             .accessibilityIdentifier("state.action")
             .shellTarget(focusPrefix + "play", radius: 16, action: primary)
@@ -57,11 +57,11 @@ struct GameLaunchActions: View {
                         .labelStyle(.iconOnly)
                         .frame(minWidth: 26, minHeight: 26)
                 }
-                .buttonStyle(.glass)
+                .shellGlassButton()
                 .buttonBorderShape(.circle)
                 .controlSize(.large)
-                .glassEffectID("settings", in: namespace)
-                .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+                .shellGlassEffectID("settings", in: namespace)
+                .shellGlassEffectTransition(reduceMotion: reduceMotion)
                 .accessibilityLabel(ShellStrings.text("Game settings") + ", " + game.title)
                 .accessibilityIdentifier("settings.open")
                 .shellTarget(focusPrefix + "settings", radius: 16, action: settings)

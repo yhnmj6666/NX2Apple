@@ -2,7 +2,7 @@ name: ShellDemo
 options:
   bundleIdPrefix: dev.shellui
   deploymentTarget:
-    iOS: '26.0'
+    iOS: '18.0'
 packages:
   ShellUI:
     path: ..

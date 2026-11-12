@@ -33,11 +33,11 @@ struct DeleteGameView: View {
                 Button(role: .destructive, action: delete) {
                     Text(saves ? ShellStrings.text("Delete game and saves") : ShellStrings.text("Delete game")).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glassProminent).tint(DeleteStyle.red).controlSize(.large)
+                .shellGlassButton(prominent: true).tint(DeleteStyle.red).controlSize(.large)
                 .accessibilityIdentifier("delete.confirm")
                 .shellTarget("del.confirm", radius: 25, action: delete)
                 Button(action: cancel) { Text(ShellStrings.text("Cancel")).frame(maxWidth: .infinity) }
-                    .buttonStyle(.glass).controlSize(.large)
+                    .shellGlassButton().controlSize(.large)
                     .accessibilityIdentifier("delete.cancel")
                     .shellTarget("del.cancel", action: cancel)
             }.padding(.top, 4)

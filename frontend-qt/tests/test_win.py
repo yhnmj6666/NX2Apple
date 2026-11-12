@@ -447,6 +447,35 @@ class HostSourcesTest(unittest.TestCase):
             shutil.rmtree(sdk.parent, ignore_errors=True)
 
 
+class ClassicMetalBuildTest(unittest.TestCase):
+    def test_ios18_selects_classic_metal_and_older_cpu(self) -> None:
+        flags = build_app.common_flags(Path('sdk'), [], '18.0')
+        self.assertIn('arm64-apple-ios18.0', flags)
+        self.assertIn('-mcpu=apple-a14', flags)
+        self.assertIn('-DDM_NVN_M3=1', flags)
+
+    def test_ios26_keeps_metal4(self) -> None:
+        flags = build_app.common_flags(Path('sdk'), [], '26.0')
+        self.assertIn('arm64-apple-ios26.0', flags)
+        self.assertIn('-mcpu=apple-a16', flags)
+        self.assertNotIn('-DDM_NVN_M3=1', flags)
+
+    def test_classic_mode_reaches_standalone_toolchain_and_shims(self) -> None:
+        code = (
+            'import json, sys; sys.path.insert(0, %r); '
+            'import nspb_qt.win as pkg; '
+            'sys.path.insert(0, %r); import toolchain; '
+            'from nspb_qt.win import xcrun_shim; '
+            'print(json.dumps([pkg.IOS_DEPLOYMENT, pkg.IOS_CPU, '
+            'toolchain.IOS_DEPLOYMENT, xcrun_shim._IOS_DEPLOYMENT]))'
+        ) % (str(QT), str(QT / 'nspb_qt' / 'win'))
+        env = dict(os.environ, DM_IOS_M3='1')
+        result = subprocess.run([sys.executable, '-c', code], env=env,
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), ['18.0', 'apple-a14', '18.0', '18.0'])
+
+
 class InfoPlistTest(unittest.TestCase):
     def test_keys_the_app_reads_are_present(self) -> None:
         p = build_app.info_plist(bundle_id='org.example.1', name='Game', version='1.2.3',

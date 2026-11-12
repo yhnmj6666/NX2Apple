@@ -10,14 +10,13 @@ process boundaries, where a function replacement cannot reach.
 """
 from __future__ import annotations
 
-#: Deployment target of the iOS app. `dm/ios/project.yml` says 26.0 (Metal 4), and the
-#: cross-compiled objects must agree with it or the linker warns about platform versions.
-IOS_DEPLOYMENT = '26.0'
+import os
 
-#: CPU the host is compiled for. Matches the reference implementation that was verified on a
-#: real device; a lower core would leave performance on the table, a higher one (a18) would
-#: let clang emit instructions older iPads lack.
-IOS_CPU = 'apple-a16'
+#: DM_IOS_M3 opts into iOS 18 and classic Metal. The default remains iOS 26 / Metal 4.
+IOS_DEPLOYMENT = '18.0' if os.environ.get('DM_IOS_M3') == '1' else '26.0'
+
+#: The classic path uses the reference's A14 baseline, including the iPhone 13's A15.
+IOS_CPU = 'apple-a14' if os.environ.get('DM_IOS_M3') == '1' else 'apple-a16'
 
 #: Environment variable names this package sets for the build. They all carry the `NSPB_`
 #: prefix so they cannot collide with the upstream script's own vocabulary.

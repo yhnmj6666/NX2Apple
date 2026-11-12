@@ -171,7 +171,7 @@ private struct GameSettingsGlassButton: View {
         Button(role: destructive ? .destructive : nil, action: action) {
             Text(title).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .shellGlassButton()
         .controlSize(.large)
         .tint(destructive ? DeleteStyle.red : .white)
         .foregroundStyle(destructive ? DeleteStyle.red : .white)
@@ -197,7 +197,7 @@ struct SourceRow<Buttons: View>: View {
             } icon: { Image(systemName: symbol) }
             .labelStyle(SettingsRowLabelStyle())
             // The buttons share the card's width in equal parts, or stack full width when their labels do not fit.
-            GlassEffectContainer(spacing: 10) {
+            ShellGlassEffectContainer(spacing: 10) {
                 ViewThatFits(in: .horizontal) {
                     EqualRow(spacing: 10) { buttons() }
                     VStack(spacing: 10) { buttons() }

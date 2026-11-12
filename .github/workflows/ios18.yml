@@ -1,0 +1,100 @@
+name: iOS 18 compatibility
+
+on:
+  push:
+    branches: [ios18-compat]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios18-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - run: python tools/engine.py check
+      - run: python tools/engine.py sync
+      - run: python -m unittest discover -s frontend-qt/tests
+      - run: python -m unittest discover -s tools/tests
+
+  shell:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sync source-only engine
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          python3 tools/engine.py sync
+      - name: Build unsigned iOS 18 shell
+        run: |
+          set -euo pipefail
+          command -v xcodegen || brew install xcodegen
+          python3 tools/build_shell_template.py --ios18 --out "$RUNNER_TEMP/ios18/DmShell.app"
+          xcrun vtool -show-build "$RUNNER_TEMP/ios18/DmShell.app/DmShell"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ios18/DmShell.app" "$RUNNER_TEMP/ios18/DmShell-ios18.zip"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DmShell-ios18
+          path: ${{ runner.temp }}/ios18/DmShell-ios18.zip
+          if-no-files-found: error
+      - name: Swift package build and tests
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          swift build --package-path frontend-ios
+          swift test --package-path frontend-ios
+      - name: Classic-Metal GPU regressions without game data
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          xcrun clang -fobjc-arc -DDM_NVN_M3=1 -mmacosx-version-min=15.0 \
+            -Wno-unguarded-availability-new -framework Foundation -framework Metal \
+            engine/dm/gfx/nvn/nvn_metal3.m engine/dm/gfx/tests/t_metal3.m \
+            -o "$RUNNER_TEMP/test-metal3"
+          MTL_DEBUG_LAYER=1 "$RUNNER_TEMP/test-metal3"
+      - name: Install iOS 18 simulator runtime
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          xcodebuild -downloadPlatform iOS -buildVersion 18.5 -architectureVariant arm64
+          xcrun simctl create "iOS 18 compatibility" com.apple.CoreSimulator.SimDeviceType.iPhone-13 com.apple.CoreSimulator.SimRuntime.iOS-18-5 > "$RUNNER_TEMP/ios18-simulator"
+      - name: iOS 18 package and affected UI regressions
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          destination="platform=iOS Simulator,id=$(cat "$RUNNER_TEMP/ios18-simulator")"
+          (cd frontend-ios && xcodebuild -scheme ShellUI-Package -destination "$destination" \
+            -resultBundlePath "$RUNNER_TEMP/ios18-package.xcresult" CODE_SIGNING_ALLOWED=NO test)
+          xcodebuild -project frontend-ios/Demo/ShellDemo.xcodeproj -scheme ShellDemo \
+            -destination "$destination" IPHONEOS_DEPLOYMENT_TARGET=18.0 CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RUNNER_TEMP/ios18-ui.xcresult" \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testGameSettingsGlassActionsPreserveBehavior \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testPortraitScrollKeepsLibraryToolbarActionsAvailable \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testMappingKeepsPreviewAndUsesChildChoiceSheet \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testEditedTouchControlsSaveAndDiscardBothCloseTheEditor \
+            -only-testing:ShellDemoUITests/ShellDemoUITests/testNativeMenuChoiceDeleteCancelAndHelp test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: ios18-test-results
+          path: ${{ runner.temp }}/ios18-*.xcresult
+          if-no-files-found: ignore

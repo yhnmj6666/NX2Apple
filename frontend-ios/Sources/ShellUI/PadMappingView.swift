@@ -153,7 +153,7 @@ struct PadMappingCard: View {
                             .frame(height: min(max(0, geometry.size.width - 40) * 220 / 320, geometry.size.height * 0.45))
                             .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 16)
                         nativeList
-                            .scrollEdgeEffectHidden(true, for: .top)
+                            .shellScrollEdgeHidden(true)
                             .overlay(alignment: .top) {
                                 Rectangle().fill(.ultraThinMaterial)
                                     .overlay {
@@ -256,7 +256,7 @@ struct PadMappingCard: View {
             } action: { _, scrolled in
                 mappingsScrolled = scrolled
             }
-            .scrollEdgeEffectStyle(.soft, for: .top)
+            .shellSoftScrollEdge()
             .tint(ShellPalette.cream)
             .accessibilityIdentifier("padMapping.mappings")
             .onChange(of: focus.id) { _, id in

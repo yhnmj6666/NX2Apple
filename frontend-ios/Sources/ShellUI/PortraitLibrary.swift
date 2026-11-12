@@ -86,7 +86,7 @@ struct PortraitLibrary: View, Equatable {
     private var collapseDistance: CGFloat { max(0, heroHeight - topInset - compactHeroHeight) }
 
     var body: some View {
-        GlassEffectContainer(spacing: 12) {
+        ShellGlassEffectContainer(spacing: 12) {
             ScrollViewReader { proxy in
                 Group {
                     if #available(iOS 27.1, macOS 27.1, *), tabletop {
@@ -97,7 +97,7 @@ struct PortraitLibrary: View, Equatable {
                             }
                         } secondary: {
                             gameScroll(includesHero: false)
-                                .safeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
+                                .shellSafeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
                         }
                         .arrangementViewStyle(.split.axes(.vertical))
                         .background(Color.black)
@@ -109,11 +109,11 @@ struct PortraitLibrary: View, Equatable {
                             gameScroll(includesHero: false)
                         }
                         .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: heroCollapsed)
-                        .safeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
+                        .shellSafeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
                     } else {
                         gameScroll(includesHero: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .safeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
+                            .shellSafeAreaBar(edge: .bottom, spacing: 0) { bottomBar }
                     }
                 }
                 .ignoresSafeArea(edges: tabletop ? [.bottom] : wide ? [.top, .bottom] : [.top, .leading, .trailing])
@@ -207,8 +207,8 @@ struct PortraitLibrary: View, Equatable {
         .scrollPosition($position)
         .scrollIndicators(.hidden)
         .background { Color.black.ignoresSafeArea() }
-        .scrollEdgeEffectStyle(.soft, for: .top)
-        .scrollEdgeEffectHidden(tabletop || !expanded, for: .top)
+        .shellSoftScrollEdge()
+        .shellScrollEdgeHidden(tabletop || !expanded)
         .accessibilityIdentifier("library.grid")
         .overlay(alignment: .top) {
             if tabletop {
@@ -400,11 +400,11 @@ struct PortraitLibrary: View, Equatable {
                         .accessibilityIdentifier("recent.select.\(detail.id)")
                         .shellTarget("lib.recent.\(detail.id)") { select(detail.id) }
                         // Keep this glass independent from the persistent primary action's morphing group.
-                        GlassEffectContainer {
+                        ShellGlassEffectContainer {
                             Button { primary(detail) } label: {
                                 Image(systemName: "play.fill").frame(minWidth: 24, minHeight: 24)
                             }
-                            .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
+                            .shellGlassButton().buttonBorderShape(.circle).controlSize(.large)
                             .tint(.white).foregroundStyle(.white)
                             .disabled(detail.game.state != .playable)
                             .accessibilityLabel(ShellStrings.text("Play") + ", " + detail.game.title)

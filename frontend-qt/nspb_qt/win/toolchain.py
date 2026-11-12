@@ -34,7 +34,7 @@ from pathlib import Path
 # The package constants are duplicated rather than imported: `shim.py` loads this module from a
 # generated `sitecustomize.py`, where there is no package context, and a relative import would
 # fail there. `tests/test_win.py` asserts the two copies stay equal.
-IOS_DEPLOYMENT = '26.0'
+IOS_DEPLOYMENT = '18.0' if os.environ.get('DM_IOS_M3') == '1' else '26.0'
 ENV_TOOLCHAIN = 'NSPB_TOOLCHAIN_JSON'
 ENV_LLVM = 'NSPB_LLVM_DIR'
 ENV_SDK = 'NSPB_IOS_SDK'

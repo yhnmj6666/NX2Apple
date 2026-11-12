@@ -75,6 +75,38 @@ NXB_ENGINE=engine nxb build <NSP folder> --platform mac-app -k <prod.keys> --tit
 
 ## Build the IPA
 
+### iOS 18 compatibility on Windows
+
+The Windows builder supports an opt-in classic-Metal backend, following
+[d2r-mobile's older-system approach](https://github.com/jhaizhou-ops/d2r-mobile/blob/main/docs/OLDER_SYSTEMS.md).
+The normal build remains iOS 26 / Metal 4. To select the iOS 18 backend, set
+`DM_IOS_M3=1` before starting the source-based Windows builder. It compiles the
+engine for iOS 18 with an Apple A14 CPU baseline, also suitable for the iPhone 13's A15.
+The SDK must still provide the current engine's headers.
+
+The shared app also needs a shell built for iOS 18. On macOS with the project's Xcode:
+
+```bash
+python3 tools/engine.py sync
+python3 tools/build_shell_template.py --ios18 --out /tmp/ios18/DmShell.app
+```
+
+On Windows, point `NSPB_SHELL_TEMPLATE` at that app bundle and set `DM_IOS_M3` in
+the same process that runs the builder. Do not mix an old engine framework with a
+new shell or reuse an iOS 26-only shader library. The app executable, every game
+framework, each manifest's `min_os`, and the compiled shaders must all support iOS 18.
+Editing only an IPA's `MinimumOSVersion` is insufficient.
+
+The classic backend uses separate native render, compute and blit encoders,
+retains the current shader ABI (application binary interface), declares indirect resources, and uses command-buffer
+completion and presentation. GPUs without BC texture compression decode those
+textures on the CPU. Metal 4 pipeline archives, counter-heap profiling and Metal 4
+MetalFX replacements are unavailable. Sparse images use whole-texture allocations.
+These fallbacks can increase CPU time and memory use. Simulator and synthetic GPU
+checks do not establish that a particular game is playable on an iPhone.
+
+### Standard build
+
 The main build script packs a **slim IPA by default** (no RomFS inside, as the app reads the game's data from its folder on the device, `Documents/games/<id>/`), so the build above already produced it. To re-pack just the package later:
 
 ```bash

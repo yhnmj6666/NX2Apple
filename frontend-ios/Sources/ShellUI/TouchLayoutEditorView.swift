@@ -137,7 +137,7 @@ struct TouchLayoutEditorView: View {
         Button(action: requestExit) {
             Label(ShellStrings.text("Exit"), systemImage: "xmark")
         }
-        .buttonStyle(.glass)
+        .shellGlassButton()
         .accessibilityLabel(ShellStrings.text("Exit"))
         .accessibilityIdentifier("touchLayout.back")
         .shellTarget("lay.back", action: requestExit)
@@ -147,7 +147,7 @@ struct TouchLayoutEditorView: View {
         Button { if !ignoresPress() { hintVisible = false; optionsPresented = true } } label: {
             Image(systemName: "gearshape.fill").font(.system(size: 18, weight: .semibold))
         }
-        .buttonStyle(.glass)
+        .shellGlassButton()
         .buttonBorderShape(.circle)
         .controlSize(.regular)
         .frame(width: 44, height: 44)
@@ -165,7 +165,7 @@ struct TouchLayoutEditorView: View {
         Button(action: saveAndClose) {
             Label(ShellStrings.text("Save"), systemImage: "checkmark")
         }
-        .buttonStyle(.glassProminent)
+        .shellGlassButton(prominent: true)
         .labelStyle(.iconOnly)
         .buttonBorderShape(.circle)
         .tint(ShellPalette.cream)
@@ -349,7 +349,7 @@ struct TouchLayoutEditorView: View {
     }
 
     private func selectedToolbar(for selected: TouchLayout.Control) -> some View {
-        GlassEffectContainer(spacing: 12) {
+        ShellGlassEffectContainer(spacing: 12) {
         HStack(spacing: 8) {
             selectedReset.labelStyle(.iconOnly).frame(width: 44, height: 44)
 
@@ -359,7 +359,7 @@ struct TouchLayoutEditorView: View {
                         .foregroundStyle(model.together ? Color.black : Color.white)
                 }
                 .toggleStyle(.button)
-                .buttonStyle(.glass)
+                .shellGlassButton()
                 .frame(width: 44, height: 44)
                 .tint(ShellPalette.cream)
                 .accessibilityLabel(ShellStrings.text("Move A B X Y together"))
@@ -558,7 +558,7 @@ struct TouchLayoutEditorView: View {
         return Button { if !ignoresPress() { model.putBack() } } label: {
             Image(systemName: "arrow.counterclockwise")
         }
-            .buttonStyle(.glass)
+            .shellGlassButton()
             .frame(width: 44, height: 44)
             .accessibilityLabel(ShellStrings.text("Reset this control"))
             .disabled(!canPutBack)

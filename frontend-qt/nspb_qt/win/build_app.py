@@ -278,9 +278,12 @@ SDK_COMPAT = HERE / 'ios' / 'sdk_compat'
 
 def common_flags(sdk: Path, incs: list[Path], deployment: str) -> list[str]:
     compat = [f'-I{SDK_COMPAT}'] if SDK_COMPAT.is_dir() else []
+    classic = int(deployment.split('.')[0]) < 26
+    backend = ['-DDM_NVN_M3=1'] if classic else []
+    cpu = 'apple-a14' if classic else IOS_CPU
     return ['-target', f'arm64-apple-ios{deployment}', '-isysroot', str(sdk),
-            '-Os', f'-mcpu={IOS_CPU}', '-w', '-fno-common', '-DNS_BLOCK_ASSERTIONS=1',
-            *compat, *[f'-I{i}' for i in incs]]
+            '-Os', f'-mcpu={cpu}', '-w', '-fno-common', '-DNS_BLOCK_ASSERTIONS=1',
+            *backend, *compat, *[f'-I{i}' for i in incs]]
 
 
 def flags_for(path: Path, common: list[str], host_main: Path) -> list[str]:
@@ -1078,6 +1081,7 @@ def main(argv: list[str] | None = None) -> int:
             '--romfs-identity', romfs_id,
             '--framework-name', fw_name,
             '--loader', 'FH',
+            '--min-os', deployment,
         ]
         if (patched / 'nro.tsv').is_file():
             manifest_args += ['--nro-table', patched / 'nro.tsv']

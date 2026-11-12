@@ -32,7 +32,7 @@ def _chain_version(engine: Path) -> str:
     raise SystemExit('no DMSH_CHAIN in dm/gfx/nvn/dmsh_chain.h')
 
 
-def build_template(out_app: Path, engine: Path | None = None) -> Path:
+def build_template(out_app: Path, engine: Path | None = None, *, ios18: bool = False) -> Path:
     engine = (engine or (REPO / 'engine')).resolve()
     ios_src = engine / 'dm' / 'ios'
     pkg_dir = engine / 'frontend-ios'
@@ -76,6 +76,10 @@ def build_template(out_app: Path, engine: Path | None = None) -> Path:
         # `DmShell.app/Frameworks/` when packing `NX2Apple.ipa`.
         tpl_lines = (ios_src / 'project-shell.yml').read_text(encoding='utf-8').splitlines()
         proj_lines = [ln for ln in tpl_lines if not ln.lstrip().startswith('# @FRAMEWORKS@')]
+        if ios18:
+            proj_lines = [ln.replace('iOS: "26.0"', 'iOS: "18.0"')
+                          .replace('-mcpu=apple-a18', '-mcpu=apple-a14')
+                          for ln in proj_lines]
         (s / 'project.yml').write_text('\n'.join(proj_lines) + '\n', encoding='utf-8')
 
         env = dict(
@@ -112,6 +116,7 @@ def build_template(out_app: Path, engine: Path | None = None) -> Path:
             'CODE_SIGNING_REQUIRED=NO',
             'CODE_SIGN_IDENTITY=',
             'OTHER_LDFLAGS=$(inherited) -Wl,-adhoc_codesign',
+            *(['IPHONEOS_DEPLOYMENT_TARGET=18.0'] if ios18 else []),
             'build',
         ]
         r_xb = subprocess.run(cmd, cwd=s, env=env, capture_output=True, text=True)
@@ -123,6 +128,8 @@ def build_template(out_app: Path, engine: Path | None = None) -> Path:
         exe = built / 'DmShell'
         if not exe.is_file():
             raise SystemExit(f'no built executable at {exe}')
+        if ios18 and plistlib.loads((built / 'Info.plist').read_bytes()).get('MinimumOSVersion') != '18.0':
+            raise SystemExit('the shell build did not produce an iOS 18 app')
 
         # Remove bundle-level signature folders or leftover Frameworks; keep only the executable's
         # LC_CODE_SIGNATURE so Windows `macho_sign.sign` can stamp the entitlements in place.
@@ -143,8 +150,10 @@ def main(argv: list[str] | None = None) -> int:
                     help='path to the synced engine checkout (default: <repo>/engine)')
     ap.add_argument('--out', type=Path, default=DEFAULT_OUT,
                     help='where to write DmShell.app (default: %(default)s)')
+    ap.add_argument('--ios18', action='store_true',
+                    help='build the classic-Metal-compatible iOS 18 shell')
     args = ap.parse_args(argv)
-    out = build_template(args.out.resolve(), engine=args.engine)
+    out = build_template(args.out.resolve(), engine=args.engine, ios18=args.ios18)
     print(f'built DmShell.app template: {out}')
     return 0
 
